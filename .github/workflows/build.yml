@@ -20,15 +20,35 @@ jobs:
         java-version: '11'
         distribution: 'temurin'
 
-    - name: Auto-Fix Project Structure and Code
+    - name: Complete Clean & Build Pure Java Project
       run: |
-        rm -rf app/src/main/java app/src/main/kotlin app/src/main/res/layout app/src/test app/src/androidTest
+        # Purana saara kachra (res, java, kotlin, tests) साफ!
+        rm -rf app/src/main/java app/src/main/kotlin app/src/main/res app/src/test app/src/androidTest
         mkdir -p app/src/main/java/com/evofox/bridge
 
+        # 1. Root build.gradle ko bilkul simple aur clean banana
+        cat << 'EOF' > build.gradle
+        buildscript {
+            repositories {
+                google()
+                mavenCentral()
+            }
+            dependencies {
+                classpath "com.android.tools.build:gradle:7.0.4"
+            }
+        }
+        allprojects {
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        EOF
+
+        # 2. App build.gradle (Bina kisi Kotlin ya फालतू dependency ke)
         cat << 'EOF' > app/build.gradle
         plugins {
             id 'com.android.application'
-            id 'kotlin-android'
         }
         android {
             compileSdkVersion 31
@@ -43,15 +63,12 @@ jobs:
                 sourceCompatibility JavaVersion.VERSION_1_8
                 targetCompatibility JavaVersion.VERSION_1_8
             }
-            kotlinOptions {
-                jvmTarget = '1.8'
-            }
         }
         dependencies {
-            implementation "org.jetbrains.kotlin:kotlin-stdlib:1.5.31"
         }
         EOF
 
+        # 3. Clean AndroidManifest.xml
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -77,45 +94,52 @@ jobs:
         </manifest>
         EOF
 
-        cat << 'EOF' > app/src/main/java/com/evofox/bridge/MainActivity.kt
-        package com.evofox.bridge
-        import android.app.Activity
-        import android.os.Bundle
-        import android.view.Gravity
-        import android.view.InputDevice
-        import android.view.KeyEvent
-        import android.view.MotionEvent
-        import android.widget.TextView
+        # 4. Pure Java MainActivity.java (100% Guaranteed Compile)
+        cat << 'EOF' > app/src/main/java/com/evofox/bridge/MainActivity.java
+        package com.evofox.bridge;
 
-        class MainActivity : Activity() {
-            private lateinit var statusText: TextView
-            override fun onCreate(savedInstanceState: Bundle?) {
-                super.onCreate(savedInstanceState)
-                statusText = TextView(this).apply {
-                    text = "EvoFox Bridge Ready!\n\nConnect controller via OTG\nand press any button to test."
-                    textSize = 20f
-                    gravity = Gravity.CENTER
-                }
-                setContentView(statusText)
+        import android.app.Activity;
+        import android.os.Bundle;
+        import android.view.Gravity;
+        import android.view.InputDevice;
+        import android.view.KeyEvent;
+        import android.view.MotionEvent;
+        import android.widget.TextView;
+
+        public class MainActivity extends Activity {
+            private TextView statusText;
+
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+                super.onCreate(savedInstanceState);
+                statusText = new TextView(this);
+                statusText.setText("EvoFox Bridge Ready!\n\nConnect controller via OTG\nand press any button to test.");
+                statusText.setTextSize(20f);
+                statusText.setGravity(Gravity.CENTER);
+                setContentView(statusText);
             }
-            override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-                if (event.action == KeyEvent.ACTION_DOWN) {
-                    statusText.text = "Button Pressed: KeyCode ${event.keyCode}"
-                    return true
-                } else if (event.action == KeyEvent.ACTION_UP) {
-                    statusText.text = "Button Released: KeyCode ${event.keyCode}"
-                    return true
+
+            @Override
+            public boolean dispatchKeyEvent(KeyEvent event) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    statusText.setText("Button Pressed: KeyCode " + event.getKeyCode());
+                    return true;
+                } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                    statusText.setText("Button Released: KeyCode " + event.getKeyCode());
+                    return true;
                 }
-                return super.dispatchKeyEvent(event)
+                return super.dispatchKeyEvent(event);
             }
-            override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
-                if (event.source and InputDevice.SOURCE_JOYSTICK != 0) {
-                    val x = event.getAxisValue(MotionEvent.AXIS_X)
-                    val y = event.getAxisValue(MotionEvent.AXIS_Y)
-                    statusText.text = "Joystick Moved:\nX: $x\nY: $y"
-                    return true
+
+            @Override
+            public boolean dispatchGenericMotionEvent(MotionEvent event) {
+                if ((event.getSource() & InputDevice.SOURCE_JOYSTICK) != 0) {
+                    float x = event.getAxisValue(MotionEvent.AXIS_X);
+                    float y = event.getAxisValue(MotionEvent.AXIS_Y);
+                    statusText.setText("Joystick Moved:\nX: " + x + "\nY: " + y);
+                    return true;
                 }
-                return super.dispatchGenericMotionEvent(event)
+                return super.dispatchGenericMotionEvent(event);
             }
         }
         EOF
@@ -124,7 +148,7 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build Debug APK
-      run: ./gradlew assembleDebug --stacktrace
+      run: ./gradlew assembleDebug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
