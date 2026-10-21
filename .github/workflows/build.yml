@@ -20,13 +20,29 @@ jobs:
         java-version: '11'
         distribution: 'temurin'
 
-    - name: Complete Clean & Build Pure Java Project
+    - name: Complete Clean & Fix Gradle Version
       run: |
-        # Purana saara kachra (res, java, kotlin, tests) साफ!
+        # 1. Purana kachra saaf
         rm -rf app/src/main/java app/src/main/kotlin app/src/main/res app/src/test app/src/androidTest
         mkdir -p app/src/main/java/com/evofox/bridge
+        mkdir -p gradle/wrapper
 
-        # 1. Root build.gradle ko bilkul simple aur clean banana
+        # 2. GRADLE VERSION FIX (6.7.1 ko hata kar 7.2 set karna)
+        cat << 'EOF' > gradle/wrapper/gradle-wrapper.properties
+        distributionBase=GRADLE_USER_HOME
+        distributionPath=wrapper/dists
+        distributionUrl=https\://services.gradle.org/distributions/gradle-7.2-bin.zip
+        zipStoreBase=GRADLE_USER_HOME
+        zipStorePath=wrapper/dists
+        EOF
+
+        # 3. Clean settings.gradle
+        cat << 'EOF' > settings.gradle
+        rootProject.name = "EvoFoxBridge"
+        include ':app'
+        EOF
+
+        # 4. Root build.gradle (Matched with Gradle 7.2)
         cat << 'EOF' > build.gradle
         buildscript {
             repositories {
@@ -45,7 +61,7 @@ jobs:
         }
         EOF
 
-        # 2. App build.gradle (Bina kisi Kotlin ya फालतू dependency ke)
+        # 5. App build.gradle
         cat << 'EOF' > app/build.gradle
         plugins {
             id 'com.android.application'
@@ -68,7 +84,7 @@ jobs:
         }
         EOF
 
-        # 3. Clean AndroidManifest.xml
+        # 6. AndroidManifest.xml
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -94,7 +110,7 @@ jobs:
         </manifest>
         EOF
 
-        # 4. Pure Java MainActivity.java (100% Guaranteed Compile)
+        # 7. MainActivity.java
         cat << 'EOF' > app/src/main/java/com/evofox/bridge/MainActivity.java
         package com.evofox.bridge;
 
